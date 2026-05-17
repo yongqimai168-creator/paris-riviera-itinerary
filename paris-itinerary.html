@@ -924,5 +924,60 @@ html{scroll-behavior:smooth}
 <p style="margin-top:1rem;font-size:.75rem;color:#999">📸 点击每个景点旁的 <span style="color:#ff2442;">📕 小红书</span> 按钮可查看相关攻略和打卡图</p>
 </footer>
 
+<script>
+// 小红书链接智能跳转：手机端优先打开 App，电脑端直接打开网页
+(function(){
+  var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    document.addEventListener('click', function(e) {
+      var target = e.target.closest('.xhs-btn');
+      if (!target) return;
+      
+      e.preventDefault();
+      var url = target.getAttribute('href');
+      if (!url) return;
+      
+      // 从 URL 中提取关键词
+      var keyword = '';
+      var match = url.match(/keyword=([^&]+)/);
+      if (match) {
+        keyword = decodeURIComponent(match[1]);
+      }
+      
+      if (keyword) {
+        // 尝试打开小红书 App
+        var appUrl = 'xhsdiscover://search/' + encodeURIComponent(keyword);
+        var webUrl = url;
+        
+        // 设置一个计时器，如果 App 没打开则跳转网页版
+        var timer = setTimeout(function() {
+          window.location.href = webUrl;
+        }, 800);
+        
+        // 尝试打开 App
+        var iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = appUrl;
+        document.body.appendChild(iframe);
+        
+        // 如果页面失去焦点（App 打开了），清除计时器
+        window.addEventListener('blur', function() {
+          clearTimeout(timer);
+        });
+        
+        // 如果 App 打开了，清除计时器
+        setTimeout(function() {
+          clearTimeout(timer);
+        }, 1500);
+      } else {
+        // 没有关键词，直接打开网页
+        window.location.href = url;
+      }
+    }, true);
+  }
+})();
+</script>
+
 </body>
 </html>
