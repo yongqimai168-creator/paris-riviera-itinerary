@@ -925,61 +925,32 @@ html{scroll-behavior:smooth}
 </footer>
 
 <script>
-// 小红书链接智能跳转 - 手机端专用
+// 小红书链接 - 手机端：复制关键词 + 引导手动打开App
 (function(){
   var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  if (!isMobile) return;
   
-  if (!isMobile) return; // 电脑端不做特殊处理，直接走默认链接
-  
-  // 创建 Toast 提示样式
-  var toastStyle = document.createElement('style');
-  toastStyle.textContent = `
-    .xhs-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;z-index:99999;text-align:center;max-width:85%;backdrop-filter:blur(10px);animation:xhsFadeIn .3s ease}
-    .xhs-toast .xhs-toast-title{font-weight:700;margin-bottom:4px;font-size:15px}
-    .xhs-toast .xhs-toast-desc{color:rgba(255,255,255,.7);font-size:12px;line-height:1.4}
-    .xhs-toast .xhs-toast-btn{display:inline-block;margin-top:8px;padding:6px 16px;background:#ff2442;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
-    @keyframes xhsFadeIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  // 样式
+  var style = document.createElement('style');
+  style.textContent = `
+    .xhs-popup{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;animation:xhsFadeIn .2s ease}
+    .xhs-popup-inner{background:#fff;border-radius:20px;padding:30px 24px 20px;width:85%;max-width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+    .xhs-popup .icon{font-size:48px;margin-bottom:10px}
+    .xhs-popup h3{font-size:18px;font-weight:700;margin-bottom:6px;color:#1a1a2e}
+    .xhs-popup .keyword{background:#f5f5f5;border-radius:10px;padding:14px 16px;margin:12px 0;font-size:16px;color:#ff2442;font-weight:600;word-break:break-all;border:2px dashed #ff2442}
+    .xhs-popup .hint{font-size:13px;color:#999;margin-bottom:16px;line-height:1.6}
+    .xhs-popup .hint strong{color:#ff2442}
+    .xhs-popup .btn{padding:14px 20px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+    .xhs-popup .btn-primary{background:#ff2442;color:#fff}
+    .xhs-popup .btn-primary:active{background:#d61e36}
+    @keyframes xhsFadeIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
   `;
-  document.head.appendChild(toastStyle);
+  document.head.appendChild(style);
   
-  // 显示 Toast 提示
-  function showToast(keyword) {
-    var existing = document.querySelector('.xhs-toast');
-    if (existing) existing.remove();
-    
-    var toast = document.createElement('div');
-    toast.className = 'xhs-toast';
-    toast.innerHTML = 
-      '<div class="xhs-toast-title">📕 打开小红书搜索</div>' +
-      '<div class="xhs-toast-desc">已复制关键词「' + keyword + '」到剪贴板</div>' +
-      '<button class="xhs-toast-btn" id="xhsOpenAppBtn">打开小红书 App</button>';
-    document.body.appendChild(toast);
-    
-    // 点击"打开小红书 App"按钮
-    document.getElementById('xhsOpenAppBtn').addEventListener('click', function() {
-      // 尝试用多种 URL Scheme 打开小红书 App
-      var schemes = [
-        'xhsdiscover://search/' + encodeURIComponent(keyword),
-        'xhs://app.xiaohongshu.com/search/' + encodeURIComponent(keyword),
-        'snssdk1128://search/' + encodeURIComponent(keyword)
-      ];
-      
-      // 用 location.href 尝试打开（比 iframe 更可靠）
-      window.location.href = schemes[0];
-      
-      // 如果没打开，用户会留在当前页面，Toast 会消失
-      toast.remove();
-    });
-    
-    // 5秒后自动消失
-    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 5000);
-  }
-  
-  // 复制文本到剪贴板
-  function copyToClipboard(text) {
+  // 复制文本
+  function copyText(text) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).catch(function() {
-        // fallback
         var ta = document.createElement('textarea');
         ta.value = text;
         ta.style.position = 'fixed';
@@ -1001,6 +972,33 @@ html{scroll-behavior:smooth}
     }
   }
   
+  // 显示弹窗
+  function showPopup(keyword) {
+    var existing = document.querySelector('.xhs-popup');
+    if (existing) existing.remove();
+    
+    var popup = document.createElement('div');
+    popup.className = 'xhs-popup';
+    popup.innerHTML = 
+      '<div class="xhs-popup-inner">' +
+        '<div class="icon">📕</div>' +
+        '<h3>✅ 关键词已复制</h3>' +
+        '<div class="keyword">' + keyword + '</div>' +
+        '<div class="hint">请打开 <strong>小红书 App</strong> → 粘贴到搜索框 🔍<br>即可查看相关攻略和打卡图 ✨</div>' +
+        '<button class="btn btn-primary" id="xhsCloseBtn">知道了 👍</button>' +
+      '</div>';
+    document.body.appendChild(popup);
+    
+    document.getElementById('xhsCloseBtn').addEventListener('click', function() {
+      popup.remove();
+    });
+    
+    // 点击背景关闭
+    popup.addEventListener('click', function(e) {
+      if (e.target === popup) popup.remove();
+    });
+  }
+  
   // 拦截所有小红书按钮点击
   document.addEventListener('click', function(e) {
     var target = e.target.closest('.xhs-btn');
@@ -1010,7 +1008,6 @@ html{scroll-behavior:smooth}
     var url = target.getAttribute('href');
     if (!url) return;
     
-    // 从 URL 中提取关键词
     var keyword = '';
     var match = url.match(/keyword=([^&]+)/);
     if (match) {
@@ -1018,13 +1015,8 @@ html{scroll-behavior:smooth}
     }
     
     if (keyword) {
-      // 复制关键词到剪贴板
-      copyToClipboard(keyword);
-      // 显示提示
-      showToast(keyword);
-    } else {
-      // 没有关键词，尝试直接打开（虽然大概率打不开）
-      window.location.href = url;
+      copyText(keyword);
+      showPopup(keyword);
     }
   }, true);
   
