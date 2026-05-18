@@ -925,57 +925,109 @@ html{scroll-behavior:smooth}
 </footer>
 
 <script>
-// 小红书链接智能跳转：手机端优先打开 App，电脑端直接打开网页
+// 小红书链接智能跳转 - 手机端专用
 (function(){
   var isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
-  if (isMobile) {
-    document.addEventListener('click', function(e) {
-      var target = e.target.closest('.xhs-btn');
-      if (!target) return;
+  if (!isMobile) return; // 电脑端不做特殊处理，直接走默认链接
+  
+  // 创建 Toast 提示样式
+  var toastStyle = document.createElement('style');
+  toastStyle.textContent = `
+    .xhs-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;z-index:99999;text-align:center;max-width:85%;backdrop-filter:blur(10px);animation:xhsFadeIn .3s ease}
+    .xhs-toast .xhs-toast-title{font-weight:700;margin-bottom:4px;font-size:15px}
+    .xhs-toast .xhs-toast-desc{color:rgba(255,255,255,.7);font-size:12px;line-height:1.4}
+    .xhs-toast .xhs-toast-btn{display:inline-block;margin-top:8px;padding:6px 16px;background:#ff2442;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+    @keyframes xhsFadeIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  `;
+  document.head.appendChild(toastStyle);
+  
+  // 显示 Toast 提示
+  function showToast(keyword) {
+    var existing = document.querySelector('.xhs-toast');
+    if (existing) existing.remove();
+    
+    var toast = document.createElement('div');
+    toast.className = 'xhs-toast';
+    toast.innerHTML = 
+      '<div class="xhs-toast-title">📕 打开小红书搜索</div>' +
+      '<div class="xhs-toast-desc">已复制关键词「' + keyword + '」到剪贴板</div>' +
+      '<button class="xhs-toast-btn" id="xhsOpenAppBtn">打开小红书 App</button>';
+    document.body.appendChild(toast);
+    
+    // 点击"打开小红书 App"按钮
+    document.getElementById('xhsOpenAppBtn').addEventListener('click', function() {
+      // 尝试用多种 URL Scheme 打开小红书 App
+      var schemes = [
+        'xhsdiscover://search/' + encodeURIComponent(keyword),
+        'xhs://app.xiaohongshu.com/search/' + encodeURIComponent(keyword),
+        'snssdk1128://search/' + encodeURIComponent(keyword)
+      ];
       
-      e.preventDefault();
-      var url = target.getAttribute('href');
-      if (!url) return;
+      // 用 location.href 尝试打开（比 iframe 更可靠）
+      window.location.href = schemes[0];
       
-      // 从 URL 中提取关键词
-      var keyword = '';
-      var match = url.match(/keyword=([^&]+)/);
-      if (match) {
-        keyword = decodeURIComponent(match[1]);
-      }
-      
-      if (keyword) {
-        // 尝试打开小红书 App
-        var appUrl = 'xhsdiscover://search/' + encodeURIComponent(keyword);
-        var webUrl = url;
-        
-        // 设置一个计时器，如果 App 没打开则跳转网页版
-        var timer = setTimeout(function() {
-          window.location.href = webUrl;
-        }, 800);
-        
-        // 尝试打开 App
-        var iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = appUrl;
-        document.body.appendChild(iframe);
-        
-        // 如果页面失去焦点（App 打开了），清除计时器
-        window.addEventListener('blur', function() {
-          clearTimeout(timer);
-        });
-        
-        // 如果 App 打开了，清除计时器
-        setTimeout(function() {
-          clearTimeout(timer);
-        }, 1500);
-      } else {
-        // 没有关键词，直接打开网页
-        window.location.href = url;
-      }
-    }, true);
+      // 如果没打开，用户会留在当前页面，Toast 会消失
+      toast.remove();
+    });
+    
+    // 5秒后自动消失
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 5000);
   }
+  
+  // 复制文本到剪贴板
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function() {
+        // fallback
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+  }
+  
+  // 拦截所有小红书按钮点击
+  document.addEventListener('click', function(e) {
+    var target = e.target.closest('.xhs-btn');
+    if (!target) return;
+    
+    e.preventDefault();
+    var url = target.getAttribute('href');
+    if (!url) return;
+    
+    // 从 URL 中提取关键词
+    var keyword = '';
+    var match = url.match(/keyword=([^&]+)/);
+    if (match) {
+      keyword = decodeURIComponent(match[1]);
+    }
+    
+    if (keyword) {
+      // 复制关键词到剪贴板
+      copyToClipboard(keyword);
+      // 显示提示
+      showToast(keyword);
+    } else {
+      // 没有关键词，尝试直接打开（虽然大概率打不开）
+      window.location.href = url;
+    }
+  }, true);
+  
 })();
 </script>
 
